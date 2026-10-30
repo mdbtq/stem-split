@@ -22,7 +22,8 @@ class Report:
     duration_s: float   # length of the input
     seconds: float      # time spent separating
     gain_db: float      # gain applied to every stem to stay below full scale (0 = none)
-    residual_db: float  # level of mix minus the sum of the stems, relative to the mix
+    residual_db: float  # level of mix minus the sum of the model's stems, relative to the mix
+    exact_sum: bool     # residual added to the 'other' stem, so the stems add up to the mix
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -37,8 +38,9 @@ def _db(ratio: float) -> float:
 
 
 class StemSplitter:
-    def __init__(self, separator: Separator):
+    def __init__(self, separator: Separator, exact_sum: bool = False):
         self.separator = separator
+        self.exact_sum = exact_sum
 
     def process(self, src: Path, out_dir: Path, ext: str) -> Report:
         """Write one file per stem, `<out_dir>/<stem><ext>`."""
@@ -48,6 +50,11 @@ class StemSplitter:
         seconds = time.perf_counter() - start
 
         residual = audio.samples - sum(s.samples for s in stems.values())
+        if self.exact_sum:
+            if "other" not in stems:
+                raise ValueError(f"model '{self.separator.name}' has no 'other' stem")
+            other = stems["other"]
+            stems["other"] = Audio(other.samples + residual, other.sample_rate)
         # One gain for all stems, so they still add up to the mix (scaled) instead of clipping.
         peak = max(float(np.abs(s.samples).max()) for s in stems.values())
         gain = 1.0 / peak if peak > 1.0 else 1.0
@@ -61,4 +68,5 @@ class StemSplitter:
             model=self.separator.name, device=self.separator.device,
             duration_s=audio.duration, seconds=seconds, gain_db=_db(gain),
             residual_db=_db(_rms(residual) / max(_rms(audio.samples), 1e-12)),
+            exact_sum=self.exact_sum,
         )

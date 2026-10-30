@@ -66,6 +66,26 @@ class Pipeline(unittest.TestCase):
         scale = 3.0 * 10 ** (r.gain_db / 20)
         self.assertLess(np.abs(sum(stems) - mix * scale).max(), 1e-3)
 
+    def test_exact_sum_adds_the_residual_to_other(self):
+        # Stems that miss 20 % of the mix: residual -14 dB, reported as the model's.
+        splitter = StemSplitter(FakeSeparator(gain=0.8), exact_sum=True)
+        r = splitter.process(self.src, self.tmp / "out", ".wav")
+        self.assertAlmostEqual(r.residual_db, 20 * np.log10(0.2), delta=0.1)
+        self.assertTrue(r.exact_sum)
+        stems = {Path(p).stem: audio_io.read(Path(p)).samples for p in r.outputs}
+        mix = audio_io.read(self.src).samples
+        self.assertLess(np.abs(sum(stems.values()) - mix).max(), 1e-5)   # 24-bit rounding
+        bass = FakeSeparator(gain=0.8).separate(audio_io.read(self.src))["bass"].samples
+        self.assertLess(np.abs(stems["bass"] - bass).max(), 1e-5)        # only 'other' changed
+
+    def test_exact_sum_needs_an_other_stem(self):
+        class NoOther(FakeSeparator):
+            def separate(self, audio):
+                return {"bass": super().separate(audio)["bass"]}
+
+        with self.assertRaisesRegex(ValueError, "no 'other' stem"):
+            StemSplitter(NoOther(), exact_sum=True).process(self.src, self.tmp / "out", ".wav")
+
 
 class Cli(unittest.TestCase):
     def setUp(self):

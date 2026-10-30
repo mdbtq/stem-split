@@ -48,6 +48,8 @@ def _clock(seconds: float) -> str:
 def _format(r: Report) -> str:
     line = (f"{r.name}: {len(r.outputs)} stems [{r.model}, {r.device}] in {r.seconds:.1f} s "
             f"({_clock(r.duration_s)} audio), residual {r.residual_db:.1f} dB")
+    if r.exact_sum:
+        line += " (added to other)"
     if r.gain_db < 0:
         line += f", all stems lowered {-r.gain_db:.1f} dB to avoid clipping"
     return line + f" -> {Path(r.outputs[0]).parent}"
@@ -67,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--shifts", type=int, default=1,
                    help="passes with a random time shift, averaged: slightly better, "
                         "proportionally slower (default 1)")
+    p.add_argument("--exact-sum", action="store_true",
+                   help="add what the model's stems miss to 'other', so all stems add up "
+                        "to the mix exactly")
     p.add_argument("-o", "--out-dir", type=Path,
                    help="where the stem folders go (default: next to the input)")
     p.add_argument("--suffix", default="_stems",
@@ -83,7 +88,8 @@ def main(argv: list[str] | None = None) -> int:
         print("error: no audio files found", file=sys.stderr)
         return 2
     try:
-        splitter = StemSplitter(build_separator(args.model, args.device, args.shifts))
+        splitter = StemSplitter(build_separator(args.model, args.device, args.shifts),
+                                exact_sum=args.exact_sum)
     except SeparationError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
