@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stem-split"
+dynamic = ["version"]
+description = "Split audio files into stems (drums, bass, vocals, other) with Demucs"
+requires-python = ">=3.10,<3.15"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "MDBTQ"}]
+dependencies = ["demucs>=4.1", "numpy>=1.24"]
+
+[project.scripts]
+stem-split = "stem_split.cli:main"
+
+[project.urls]
+Repository = "https://github.com/mdbtq/stem-split"
+
+[tool.setuptools.dynamic]
+version = {attr = "stem_split.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
