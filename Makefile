@@ -38,5 +38,5 @@ test/all: build/venv ## Run the test suite (no model needed)
 	cd tests && ../$(PYTHON) -m unittest -v
 
 .PHONY: test/model
-test/model: build/venv ## Also run the test against the real htdemucs model
+test/model: build/venv ## Also run the tests against the real models (htdemucs, combined)
 	cd tests && STEM_SPLIT_MODEL_TESTS=1 ../$(PYTHON) -m unittest -v

@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-01
+
+### Added
+- `-m combined`, now the default: vocals from a Mel-Band RoFormer (Kimberley
+  Jensen, MIT, via audio-separator), then drums and bass from `htdemucs_ft` and
+  guitar, piano and other from `htdemucs_6s`, both run on the mix minus the
+  vocals. Six stems.
+- `RoformerVocals` and `CombinedSeparator` in the Python API.
+
+### Changed
+- Default model is `combined` instead of `htdemucs_ft`; pass `-m htdemucs_ft`
+  for the previous four stems (about 2.5x faster).
+- New dependencies: `audio-separator[cpu]` and `audioread`.
+
 ## [0.2.0] - 2026-10-30
 
 ### Added

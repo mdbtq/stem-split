@@ -10,6 +10,7 @@ import numpy as np
 from stem_split import audio_io, cli
 from stem_split.audio_io import Audio
 from stem_split.pipeline import StemSplitter
+from stem_split.separators import CombinedSeparator
 
 SR = 48000
 
@@ -87,6 +88,34 @@ class Pipeline(unittest.TestCase):
             StemSplitter(NoOther(), exact_sum=True).process(self.src, self.tmp / "out", ".wav")
 
 
+class Combined(unittest.TestCase):
+    def test_vocals_first_then_each_stem_from_its_own_model_on_the_rest(self):
+        class Stub:
+            device = "cpu"
+
+            def __init__(self, name, stems, gain):
+                self.name, self.stems, self.gain, self.seen = name, stems, gain, None
+
+            def separate(self, audio):
+                self.seen = audio.samples
+                return {s: Audio(audio.samples * self.gain, audio.sample_rate) for s in self.stems}
+
+        vocals = Stub("rf", ["vocals"], 0.25)
+        ft = Stub("ft", ["drums", "bass", "other", "vocals"], 0.1)
+        six = Stub("6s", ["drums", "bass", "other", "vocals", "guitar", "piano"], 0.2)
+        mix = tone_with_clicks()
+        stems = CombinedSeparator(vocals, ft, six).separate(mix)
+
+        self.assertEqual(sorted(stems), ["bass", "drums", "guitar", "other", "piano", "vocals"])
+        np.testing.assert_allclose(ft.seen, mix.samples * 0.75, atol=1e-6)   # mix minus vocals
+        np.testing.assert_allclose(six.seen, mix.samples * 0.75, atol=1e-6)
+        expected = {"vocals": 0.25, "drums": 0.075, "bass": 0.075,
+                    "guitar": 0.15, "piano": 0.15, "other": 0.15}
+        for name, scale in expected.items():
+            np.testing.assert_allclose(stems[name].samples, mix.samples * scale, atol=1e-6,
+                                       err_msg=name)
+
+
 class Cli(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -121,8 +150,8 @@ class Cli(unittest.TestCase):
 
 
 @unittest.skipUnless(os.environ.get("STEM_SPLIT_MODEL_TESTS"),
-                     "set STEM_SPLIT_MODEL_TESTS=1 (downloads the htdemucs weights once)")
-class DemucsModel(unittest.TestCase):
+                     "set STEM_SPLIT_MODEL_TESTS=1 (downloads the model weights once)")
+class RealModels(unittest.TestCase):
     def test_mono_48k_input_gives_mono_48k_stems_of_equal_length(self):
         from stem_split.separators import DemucsSeparator
         audio = tone_with_clicks(duration=6.0, channels=1)
@@ -131,6 +160,14 @@ class DemucsModel(unittest.TestCase):
         for stem in stems.values():
             self.assertEqual((stem.sample_rate, stem.channels, stem.frames),
                              (SR, 1, audio.frames))
+
+    def test_combined_gives_six_stems_at_the_input_format(self):
+        audio = tone_with_clicks(duration=6.0)
+        stems = cli.build_separator("combined", "auto", 1).separate(audio)
+        self.assertEqual(sorted(stems), ["bass", "drums", "guitar", "other", "piano", "vocals"])
+        for stem in stems.values():
+            self.assertEqual((stem.sample_rate, stem.channels, stem.frames),
+                             (SR, 2, audio.frames))
 
 
 if __name__ == "__main__":

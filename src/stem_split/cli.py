@@ -8,7 +8,8 @@ from pathlib import Path
 
 from . import __version__
 from .pipeline import Report, StemSplitter
-from .separators import DEFAULT_MODEL, DEVICES, DemucsSeparator, SeparationError, Separator
+from .separators import (COMBINED, DEFAULT_MODEL, DEVICES, CombinedSeparator, DemucsSeparator,
+                         RoformerVocals, SeparationError, Separator)
 
 AUDIO_EXT = {".wav", ".aif", ".aiff", ".flac", ".mp3", ".m4a", ".ogg"}
 
@@ -37,6 +38,10 @@ def _extension(src: Path, fmt: str | None) -> str:
 
 
 def build_separator(model: str, device: str, shifts: int) -> Separator:
+    if model == COMBINED:
+        return CombinedSeparator(RoformerVocals(),
+                                 DemucsSeparator("htdemucs_ft", device, shifts),
+                                 DemucsSeparator("htdemucs_6s", device, shifts))
     return DemucsSeparator(model, device, shifts)
 
 
@@ -58,17 +63,18 @@ def _format(r: Report) -> str:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="stem-split",
-        description="Split audio files into stems (drums, bass, vocals, other) with Demucs.")
+        description="Split audio files into stems (vocals, drums, bass, guitar, piano, other).")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("inputs", nargs="+", type=Path, help="audio files and/or folders")
     p.add_argument("-m", "--model", default=DEFAULT_MODEL,
-                   help=f"Demucs model: htdemucs_ft, htdemucs, htdemucs_6s … "
-                        f"(default {DEFAULT_MODEL})")
+                   help=f"'{COMBINED}' (RoFormer vocals + Demucs) or a Demucs model: htdemucs_ft, "
+                        f"htdemucs, htdemucs_6s … (default {DEFAULT_MODEL})")
     p.add_argument("--device", default="auto", choices=DEVICES,
-                   help="compute device (default: mps, else cuda, else cpu)")
+                   help="compute device for Demucs (default: mps, else cuda, else cpu); "
+                        "RoFormer picks its own in the same order")
     p.add_argument("--shifts", type=int, default=1,
                    help="passes with a random time shift, averaged: slightly better, "
-                        "proportionally slower (default 1)")
+                        "proportionally slower; Demucs only (default 1)")
     p.add_argument("--exact-sum", action="store_true",
                    help="add what the model's stems miss to 'other', so all stems add up "
                         "to the mix exactly")
