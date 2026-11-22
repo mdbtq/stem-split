@@ -72,6 +72,10 @@ bpm-lock track_stems --reference drums
 Add `--exact-sum` when the locked stems will be mixed back together and should
 sound like the locked original.
 
+To cut the stems into chunks of a fixed number of beats, all on the same cut
+points, analyse the mix with [beat-split](https://github.com/mdbtq/beat-split)
+and apply its beat map to the stems.
+
 ## Exact sum (`--exact-sum`)
 
 The residual — the mix minus the sum of the model's stems — is added to
