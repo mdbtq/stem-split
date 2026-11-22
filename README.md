@@ -76,6 +76,9 @@ To cut the stems into chunks of a fixed number of beats, all on the same cut
 points, analyse the mix with [beat-split](https://github.com/mdbtq/beat-split)
 and apply its beat map to the stems.
 
+For drum one-shots rather than stems, [drum-kit](https://github.com/mdbtq/drum-kit)
+extracts only the drums, splits them per drum and picks the best hits.
+
 ## Exact sum (`--exact-sum`)
 
 The residual — the mix minus the sum of the model's stems — is added to
