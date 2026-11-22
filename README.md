@@ -17,17 +17,18 @@ input's sample rate, channel count and length, ready for
 - Apple Silicon (MPS) or an NVIDIA GPU (CUDA) is used automatically; the CPU
   works too, only slower.
 - Network access on first use of a model. Demucs weights come from the
-  Hugging Face hub and are cached in `~/.cache/huggingface`; the RoFormer
-  weights (about 900 MB) come through audio-separator and are cached in
+  Hugging Face hub and are cached in `~/.cache/huggingface`; a cached model is
+  loaded offline afterwards, so no `HF_TOKEN` is needed. The RoFormer weights
+  (about 900 MB) come through audio-separator and are cached in
   `~/.cache/stem-split/audio-separator`.
 
 ## Install
 
 ```bash
-uv tool install --python 3.12 git+https://github.com/mdbtq/stem-split@v0.3.0
+uv tool install --python 3.12 git+https://github.com/mdbtq/stem-split@v0.3.1
 ```
 
-Or with pipx: `pipx install --python python3.12 git+https://github.com/mdbtq/stem-split@v0.3.0`.
+Or with pipx: `pipx install --python python3.12 git+https://github.com/mdbtq/stem-split@v0.3.1`.
 From a local checkout: `make build/install`.
 
 ## Usage

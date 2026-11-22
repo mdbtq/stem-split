@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol
 
@@ -51,8 +52,37 @@ def _conform(samples, rate: int, like: Audio) -> Audio:
     return Audio(np.ascontiguousarray(x, dtype=np.float32), like.sample_rate)
 
 
+def _hf_cached(model: str) -> bool:
+    """Whether a Demucs model's definition is in the local Hugging Face cache already."""
+    from demucs.hf import DEFAULT_NAMESPACE, hf_repo_name
+    from huggingface_hub import try_to_load_from_cache
+
+    namespace, _, name = model.rpartition("/")
+    repo = f"{namespace or DEFAULT_NAMESPACE}/{hf_repo_name(name)}"
+    return isinstance(try_to_load_from_cache(repo, f"{name}.yaml"), str)
+
+
+@contextmanager
+def _hf_offline(enabled: bool):
+    """Hugging Face offline mode for the duration of the block. huggingface_hub reads
+    the flag on every call, so this also works after the library has been imported."""
+    from huggingface_hub import constants
+
+    previous = constants.HF_HUB_OFFLINE
+    constants.HF_HUB_OFFLINE = previous or enabled
+    try:
+        yield
+    finally:
+        constants.HF_HUB_OFFLINE = previous
+
+
 class DemucsSeparator:
-    """Demucs (Hybrid Transformer) models; weights are downloaded and cached on first use."""
+    """Demucs (Hybrid Transformer) models; weights are downloaded and cached on first use.
+
+    A model already in the Hugging Face cache is loaded offline: without it,
+    huggingface_hub checks the hub for a newer version on every run (and warns
+    about unauthenticated requests).
+    """
 
     def __init__(self, model: str = "htdemucs_ft", device: str = "auto", shifts: int = 1):
         try:
@@ -62,8 +92,9 @@ class DemucsSeparator:
         self.name = model
         self.device = pick_device(device)
         try:
-            self._sep = _Separator(model=model, device=self.device, shifts=shifts,
-                                   progress=sys.stderr.isatty())
+            with _hf_offline(_hf_cached(model)):
+                self._sep = _Separator(model=model, device=self.device, shifts=shifts,
+                                       progress=sys.stderr.isatty())
         except Exception as e:  # unknown name, no network on first use, ...
             raise SeparationError(f"cannot load model '{model}': {e}") from e
 

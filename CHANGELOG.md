@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-11-23
+
+### Fixed
+- A Demucs model that is already in the Hugging Face cache is loaded offline.
+  Before, huggingface_hub checked the hub on every run and printed a warning
+  about unauthenticated requests (asking for `HF_TOKEN`); startup is also
+  faster. A model that is not cached yet is still downloaded from the hub.
+
 ## [0.3.0] - 2026-11-01
 
 ### Added
